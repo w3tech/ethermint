@@ -690,6 +690,7 @@ func NewEthermintApp(
 
 	// NOTE: fee market module must go last in order to retrieve the block gas used.
 	app.ModuleManager.SetOrderEndBlockers(
+		banktypes.ModuleName,
 		crisistypes.ModuleName,
 		govtypes.ModuleName,
 		evmtypes.ModuleName,
@@ -701,7 +702,6 @@ func NewEthermintApp(
 		ibctransfertypes.ModuleName,
 		capabilitytypes.ModuleName,
 		authtypes.ModuleName,
-		banktypes.ModuleName,
 		distrtypes.ModuleName,
 		slashingtypes.ModuleName,
 		minttypes.ModuleName,
