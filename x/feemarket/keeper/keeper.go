@@ -86,14 +86,14 @@ func (k Keeper) SetBlockGasWanted(ctx sdk.Context, gas uint64) error {
 }
 
 // GetBlockGasWanted returns the last block gas wanted value from the store.
-func (k Keeper) GetBlockGasWanted(ctx sdk.Context) (uint64, error) {
+func (k Keeper) GetBlockGasWanted(ctx sdk.Context) uint64 {
 	store := k.storeService.OpenKVStore(ctx)
-	bz, err := store.Get(types.KeyPrefixBlockGasWanted)
+	bz, _ := store.Get(types.KeyPrefixBlockGasWanted)
 	if len(bz) == 0 {
-		return 0, err
+		return 0
 	}
 
-	return sdk.BigEndianToUint64(bz), nil
+	return sdk.BigEndianToUint64(bz)
 }
 
 // GetBaseFeeV1 get the base fee from v1 version of states.

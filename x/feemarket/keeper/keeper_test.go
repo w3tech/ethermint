@@ -194,9 +194,8 @@ func (suite *KeeperTestSuite) TestSetGetBlockGasWanted() {
 	for _, tc := range testCases {
 		tc.malleate()
 
-		gas, err := suite.app.FeeMarketKeeper.GetBlockGasWanted(suite.ctx)
+		gas := suite.app.FeeMarketKeeper.GetBlockGasWanted(suite.ctx)
 		suite.Require().Equal(tc.expGas, gas, tc.name)
-		suite.Require().NoError(err)
 	}
 }
 

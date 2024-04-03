@@ -16,6 +16,7 @@
 package keeper
 
 import (
+	"fmt"
 	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -35,7 +36,6 @@ func (k Keeper) CalculateBaseFee(ctx sdk.Context) *big.Int {
 	if !params.IsBaseFeeEnabled(ctx.BlockHeight()) {
 		return nil
 	}
-
 	consParams := ctx.ConsensusParams()
 
 	// If the current block is the first EIP-1559 block, return the base fee
@@ -54,18 +54,13 @@ func (k Keeper) CalculateBaseFee(ctx sdk.Context) *big.Int {
 		return nil
 	}
 
-	parentGasUsed, err := k.GetBlockGasWanted(ctx)
-	if err != nil {
-		return nil
-	}
-
-	gasLimit := new(big.Int).SetUint64(math.MaxUint64)
+	parentGasUsed := k.GetBlockGasWanted(ctx)
 
 	// NOTE: a MaxGas equal to -1 means that block gas is unlimited
-	if consParams.Block.MaxGas > -1 {
-		gasLimit = big.NewInt(consParams.Block.MaxGas)
+	if consParams.Block == nil || consParams.Block.MaxGas <= -1 {
+		panic(fmt.Sprintf("get invalid consensus params: %s", consParams))
 	}
-
+	gasLimit := big.NewInt(consParams.Block.MaxGas)
 	// CONTRACT: ElasticityMultiplier cannot be 0 as it's checked in the params
 	// validation
 	parentGasTargetBig := new(big.Int).Div(gasLimit, new(big.Int).SetUint64(uint64(params.ElasticityMultiplier)))

@@ -45,7 +45,7 @@ func InitGenesis(
 
 // ExportGenesis exports genesis state of the fee market module
 func ExportGenesis(ctx sdk.Context, k keeper.Keeper) *types.GenesisState {
-	storedGasWanted, _ := k.GetBlockGasWanted(ctx)
+	storedGasWanted := k.GetBlockGasWanted(ctx)
 	return &types.GenesisState{
 		Params:   k.GetParams(ctx),
 		BlockGas: storedGasWanted,
