@@ -46,8 +46,6 @@ type EVMKeeper interface {
 
 	NewEVM(ctx sdk.Context, msg core.Message, cfg *statedb.EVMConfig, tracer vm.EVMLogger, stateDB vm.StateDB) evm.EVM
 	DeductTxCostsFromUserBalance(ctx sdk.Context, fees sdk.Coins, from common.Address) error
-	GetBalance(ctx sdk.Context, addr sdk.AccAddress, denom string) *big.Int
-	GetParams(ctx sdk.Context) evmtypes.Params
 }
 
 type protoTxProvider interface {
