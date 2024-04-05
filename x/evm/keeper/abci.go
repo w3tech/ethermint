@@ -25,6 +25,10 @@ import (
 func (k *Keeper) BeginBlock(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	k.WithChainID(sdkCtx)
+
+	// cache params object
+	_ = k.GetParams(sdkCtx)
+
 	return nil
 }
 

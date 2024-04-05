@@ -25,16 +25,15 @@ import (
 )
 
 // GetParams returns the total set of fee market parameters.
-func (k Keeper) GetParams(ctx sdk.Context) (params types.Params) {
+func (k Keeper) GetParams(ctx sdk.Context) types.Params {
+	var params types.Params
 	store := k.storeService.OpenKVStore(ctx)
 	bz, _ := store.Get(types.ParamsKey)
 	if len(bz) == 0 {
-		var p types.Params
-		k.ss.GetParamSetIfExists(ctx, &p)
-		return p
+		k.ss.GetParamSetIfExists(ctx, &params)
+	} else {
+		k.cdc.MustUnmarshal(bz, &params)
 	}
-
-	k.cdc.MustUnmarshal(bz, &params)
 	return params
 }
 
@@ -58,12 +57,6 @@ func (k Keeper) SetParams(ctx sdk.Context, params types.Params) error {
 // Parent Base Fee
 // Required by EIP1559 base fee calculation.
 // ----------------------------------------------------------------------------
-
-// GetBaseFeeEnabled returns true if base fee is enabled
-func (k Keeper) GetBaseFeeEnabled(ctx sdk.Context) bool {
-	params := k.GetParams(ctx)
-	return !params.NoBaseFee && ctx.BlockHeight() >= params.EnableHeight
-}
 
 // GetBaseFee gets the base fee from the store
 func (k Keeper) GetBaseFee(ctx sdk.Context) *big.Int {

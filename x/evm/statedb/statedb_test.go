@@ -602,7 +602,7 @@ func (suite *StateDBTestSuite) TestIterateStorage() {
 func (suite *StateDBTestSuite) TestNativeAction() {
 	_, ctx, keeper := setupTestEnv(suite.T())
 	storeKey := testStoreKeys["testnative"]
-	objStoreKey := testObjKeys[banktypes.ObjectStoreKey]
+	objStoreKey := testObjKeys[evmtypes.ObjectStoreKey]
 	memKey := testMemKeys[capabilitytypes.MemStoreKey]
 
 	eventConverter := func(event sdk.Event) (*ethtypes.Log, error) {
@@ -761,7 +761,7 @@ func CollectContractStorage(db vm.StateDB) statedb.Storage {
 
 var (
 	testStoreKeys = storetypes.NewKVStoreKeys(authtypes.StoreKey, banktypes.StoreKey, evmtypes.StoreKey, "testnative")
-	testObjKeys   = storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey)
+	testObjKeys   = storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectStoreKey)
 	testMemKeys   = storetypes.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 )
 
