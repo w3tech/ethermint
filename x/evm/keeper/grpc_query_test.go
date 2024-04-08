@@ -364,7 +364,7 @@ func (suite *KeeperTestSuite) TestQueryTxLogs() {
 			func(vmdb vm.StateDB) {
 				expLogs = []*types.Log{
 					{
-						Address:     suite.address.String(),
+						Address:     types.HexAddress(suite.address.Bytes()),
 						Topics:      []string{common.BytesToHash([]byte("topic")).String()},
 						Data:        []byte("data"),
 						BlockNumber: 1,

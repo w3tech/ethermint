@@ -35,6 +35,5 @@ func (k *Keeper) EndBlock(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	k.CollectTxBloom(sdkCtx)
-
 	return nil
 }
