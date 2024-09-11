@@ -342,6 +342,7 @@ func NewEthermintApp(
 		keys:              keys,
 		tkeys:             tkeys,
 		memKeys:           memKeys,
+		okeys:             okeys,
 	}
 
 	// init params keeper and subspaces
