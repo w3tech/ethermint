@@ -248,7 +248,7 @@ require (
 
 replace (
 	cosmossdk.io/core => cosmossdk.io/core v0.11.0
-	cosmossdk.io/store => github.com/b-harvest/cosmos-sdk/store v0.0.0-20241017105340-69898beab95b
+	cosmossdk.io/store => github.com/b-harvest/cosmos-sdk/store v0.0.0-20241023051620-117b11194645
 	// use cosmos keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.1.7-0.20210622111912-ef00f8ac3d76
 	github.com/cometbft/cometbft => github.com/b-harvest/cometbft v0.0.0-20241021060352-7d9f293f8c5a
