@@ -22,6 +22,8 @@ import (
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 )
 
+const EthSigVerificationResultCacheKey = "ante:EthSigVerificationResult"
+
 // EthSigVerificationDecorator validates an ethereum signatures
 type EthSigVerificationDecorator struct {
 	evmKeeper EVMKeeper
@@ -34,32 +36,60 @@ func NewEthSigVerificationDecorator(ek EVMKeeper) EthSigVerificationDecorator {
 	}
 }
 
+// if v, ok := ctx.GetIncarnationCache(EthSigVerificationResultCacheKey); ok {
+// 	if v != nil {
+// 		err = v.(error)
+// 	}
+// } else {
+// 	ethSigner := ethtypes.MakeSigner(blockCfg.ChainConfig, blockCfg.BlockNumber)
+// 	err = VerifyEthSig(tx, ethSigner)
+// 	ctx.SetIncarnationCache(EthSigVerificationResultCacheKey, err)
+// }
+
 // AnteHandle validates checks that the registered chain id is the same as the one on the message, and
 // that the signer address matches the one defined on the message.
 // It's not skipped for RecheckTx, because it set `From` address which is critical from other ante handler to work.
 // Failure in RecheckTx will prevent tx to be included into block, especially when CheckTx succeed, in which case user
 // won't see the error message.
-func (esvd EthSigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
+func (esvd EthSigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+	var err error
+
+	if v, ok := ctx.GetIncarnationCache(EthSigVerificationResultCacheKey); ok {
+		if v != nil {
+			err = v.(error)
+		}
+	} else {
+		err = esvd.VerifyEthSig(ctx, tx)
+		ctx.SetIncarnationCache(EthSigVerificationResultCacheKey, err)
+	}
+	if err != nil {
+		return ctx, err
+	}
+
+	return next(ctx, tx, simulate)
+}
+
+func (esvd EthSigVerificationDecorator) VerifyEthSig(ctx sdk.Context, tx sdk.Tx) error {
 	chainID := esvd.evmKeeper.ChainID()
 	evmParams := esvd.evmKeeper.GetParams(ctx)
 	for _, msg := range tx.GetMsgs() {
 		msgEthTx, ok := msg.(*evmtypes.MsgEthereumTx)
 		if !ok {
-			return ctx, errorsmod.Wrapf(errortypes.ErrUnknownRequest, "invalid message type %T, expected %T", msg, (*evmtypes.MsgEthereumTx)(nil))
+			return errorsmod.Wrapf(errortypes.ErrUnknownRequest, "invalid message type %T, expected %T", msg, (*evmtypes.MsgEthereumTx)(nil))
 		}
 
 		allowUnprotectedTxs := evmParams.GetAllowUnprotectedTxs()
 		ethTx := msgEthTx.AsTransaction()
 		if !allowUnprotectedTxs && !ethTx.Protected() {
-			return ctx, errorsmod.Wrapf(
+			return errorsmod.Wrapf(
 				errortypes.ErrNotSupported,
 				"rejected unprotected Ethereum transaction. Please EIP155 sign your transaction to protect it against replay-attacks")
 		}
 
 		if err := msgEthTx.VerifySender(chainID); err != nil {
-			return ctx, errorsmod.Wrapf(errortypes.ErrorInvalidSigner, "signature verification failed: %s", err.Error())
+			return errorsmod.Wrapf(errortypes.ErrorInvalidSigner, "signature verification failed: %s", err.Error())
 		}
 	}
 
-	return next(ctx, tx, simulate)
+	return nil
 }

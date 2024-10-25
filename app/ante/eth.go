@@ -16,6 +16,7 @@
 package ante
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 
@@ -173,15 +174,13 @@ func (egcd EthGasConsumeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 			return ctx, errorsmod.Wrap(err, "failed to unpack tx data")
 		}
 
-		if ctx.IsCheckTx() && egcd.maxGasWanted != 0 {
-			// We can't trust the tx gas limit, because we'll refund the unused gas.
-			if txData.GetGas() > egcd.maxGasWanted {
-				gasWanted += egcd.maxGasWanted
-			} else {
-				gasWanted += txData.GetGas()
-			}
-		} else {
-			gasWanted += txData.GetGas()
+		// We can't trust the tx gas limit, because we'll refund the unused gas.
+		gasLimit := msgEthTx.GetGas()
+		if egcd.maxGasWanted != 0 {
+			gasLimit = min(gasLimit, egcd.maxGasWanted)
+		}
+		if gasWanted > math.MaxInt64-gasLimit {
+			return ctx, fmt.Errorf("gasWanted(%d) + gasLimit(%d) overflow", gasWanted, gasLimit)
 		}
 
 		evmDenom := evmParams.GetEvmDenom()
