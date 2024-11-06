@@ -244,17 +244,16 @@ require (
 )
 
 replace (
-	// release/v0.50.x
-	cosmossdk.io/store => github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20240930015419-f4ea363b3fdf
-	cosmossdk.io/x/tx => github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20240930015419-f4ea363b3fdf
-	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20240930015419-f4ea363b3fdf
+	cosmossdk.io/store => github.com/b-harvest/cosmos-sdk/store v0.0.0-20241106072527-a25eb3a65854
+	cosmossdk.io/x/tx => github.com/b-harvest/cosmos-sdk/x/tx v0.0.0-20241106072513-3f9b5f9442bd
+	github.com/cosmos/cosmos-sdk => github.com/b-harvest/cosmos-sdk v0.0.0-20241106082343-55e55e63db3a
+	github.com/ethereum/go-ethereum => github.com/b-harvest/go-ethereum v0.0.0-20241106045451-23c79ab53226
 )
 
 replace (
 	// use cosmos keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	// release/v1.11.x
-	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20240926023215-d2275b4afb9a
 	// Fix upstream GHSA-h395-qcrw-5vmq vulnerability.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.7.0
