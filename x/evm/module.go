@@ -24,16 +24,27 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/maps"
+	"sort"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 
+	"cosmossdk.io/depinject"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	paramskeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
+	srvflags "github.com/evmos/ethermint/server/flags"
+	"github.com/spf13/cast"
 
+	modulev1 "github.com/evmos/ethermint/api/ethermint/evm/module/v1"
 	"github.com/evmos/ethermint/x/evm/client/cli"
 	"github.com/evmos/ethermint/x/evm/keeper"
 	"github.com/evmos/ethermint/x/evm/simulation"
@@ -208,3 +219,99 @@ func (am AppModule) IsAppModule() {}
 
 // IsOnePerModuleType implements the depinject.OnePerModuleType interface.
 func (am AppModule) IsOnePerModuleType() {}
+
+//
+// App Wiring Setup
+//
+
+func init() {
+	appmodule.Register(&modulev1.Module{},
+		appmodule.Provide(ProvideModule),
+		appmodule.Invoke(InvokeSetEvmHooks),
+	)
+}
+
+type ModuleInputs struct {
+	depinject.In
+
+	Config         *modulev1.Module
+	KvStoreKey     *storetypes.KVStoreKey
+	ObjectStoreKey *storetypes.ObjectStoreKey
+	Cdc            codec.Codec
+	AppOpts        servertypes.AppOptions `optional:"true"`
+
+	AccountKeeper   types.AccountKeeper
+	BankKeeper      types.BankKeeper
+	StakingKeeper   types.StakingKeeper
+	ParamsKeeper    paramskeeper.Keeper
+	FeeMarketKeeper types.FeeMarketKeeper
+
+	CustomContractFns []keeper.CustomContractFn
+}
+
+type ModuleOutputs struct {
+	depinject.Out
+
+	Keeper *keeper.Keeper
+	Module appmodule.AppModule
+}
+
+func ProvideModule(in ModuleInputs) ModuleOutputs {
+	// default to governance authority if not provided
+	authority := authtypes.NewModuleAddress(govtypes.ModuleName)
+	if in.Config.Authority != "" {
+		authority = authtypes.NewModuleAddressOrBech32Address(in.Config.Authority)
+	}
+
+	tracer := ""
+	if in.AppOpts != nil {
+		tracer = cast.ToString(in.AppOpts.Get(srvflags.EVMTracer))
+	}
+
+	ss := in.ParamsKeeper.Subspace(types.ModuleName)
+
+	k := keeper.NewKeeper(in.Cdc, in.KvStoreKey, in.ObjectStoreKey, authority, in.AccountKeeper, in.BankKeeper, in.StakingKeeper, in.FeeMarketKeeper, tracer, ss, in.CustomContractFns)
+
+	m := NewAppModule(k, in.AccountKeeper, ss)
+
+	return ModuleOutputs{Keeper: k, Module: m}
+}
+
+func InvokeSetEvmHooks(
+	config *modulev1.Module,
+	evmKeeper *keeper.Keeper,
+	evmHooks map[string]types.EvmHooksWrapper,
+) error {
+	// all arguments to invokers are optional
+	if evmKeeper == nil || config == nil {
+		return nil
+	}
+
+	modNames := maps.Keys(evmHooks)
+	order := config.HooksOrder
+	if len(order) == 0 {
+		order = modNames
+		sort.Strings(order)
+	}
+
+	if len(order) != len(modNames) {
+		return fmt.Errorf("len(hooks_order: %v) != len(hooks modules: %v)", order, modNames)
+	}
+
+	if len(modNames) == 0 {
+		return nil
+	}
+
+	var multiHooks keeper.MultiEvmHooks
+	for _, modName := range order {
+		hook, ok := evmHooks[modName]
+		if !ok {
+			return fmt.Errorf("can't find evm hooks for module %s", modName)
+		}
+
+		multiHooks = append(multiHooks, hook)
+	}
+
+	evmKeeper.SetHooks(multiHooks)
+	return nil
+}

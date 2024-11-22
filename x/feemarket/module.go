@@ -27,13 +27,19 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 
 	"cosmossdk.io/core/appmodule"
+	"cosmossdk.io/depinject"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	paramskeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 
+	modulev1 "github.com/evmos/ethermint/api/ethermint/feemarket/module/v1"
 	"github.com/evmos/ethermint/x/feemarket/client/cli"
 	"github.com/evmos/ethermint/x/feemarket/keeper"
 	"github.com/evmos/ethermint/x/feemarket/simulation"
@@ -194,3 +200,47 @@ func (am AppModule) IsAppModule() {}
 
 // IsOnePerModuleType implements the depinject.OnePerModuleType interface.
 func (am AppModule) IsOnePerModuleType() {}
+
+//
+// App Wiring Setup
+//
+
+func init() {
+	appmodule.Register(&modulev1.Module{},
+		appmodule.Provide(
+			ProvideModule,
+		))
+}
+
+type ModuleInputs struct {
+	depinject.In
+
+	Config     *modulev1.Module
+	KvStoreKey *storetypes.KVStoreKey
+	Cdc        codec.Codec
+
+	ParamsKeeper paramskeeper.Keeper
+}
+
+type ModuleOutputs struct {
+	depinject.Out
+
+	ParamsKeeper keeper.Keeper
+	Module       appmodule.AppModule
+}
+
+func ProvideModule(in ModuleInputs) ModuleOutputs {
+	// default to governance authority if not provided
+	authority := authtypes.NewModuleAddress(govtypes.ModuleName)
+	if in.Config.Authority != "" {
+		authority = authtypes.NewModuleAddressOrBech32Address(in.Config.Authority)
+	}
+
+	ss := in.ParamsKeeper.Subspace(types.ModuleName)
+
+	k := keeper.NewKeeper(in.Cdc, authority, in.KvStoreKey, ss)
+
+	m := NewAppModule(k, ss)
+
+	return ModuleOutputs{ParamsKeeper: k, Module: m}
+}

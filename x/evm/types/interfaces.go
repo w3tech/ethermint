@@ -83,3 +83,9 @@ type (
 		GetParamSetIfExists(ctx sdk.Context, ps LegacyParams)
 	}
 )
+
+// EvmHooksWrapper is a wrapper for modules to inject EvmHooks using depinject.
+type EvmHooksWrapper struct{ EvmHooks }
+
+// IsOnePerModuleType implements the depinject.OnePerModuleType interface.
+func (EvmHooksWrapper) IsOnePerModuleType() {}
