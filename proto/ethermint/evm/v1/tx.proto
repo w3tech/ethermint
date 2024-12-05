@@ -6,9 +6,11 @@ import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "google/protobuf/any.proto";
+import "amino/amino.proto";
 import "ethermint/evm/v1/access_tuple.proto";
 import "ethermint/evm/v1/log.proto";
 import "ethermint/evm/v1/params.proto";
+import "ethermint/evm/v1/zero_gas.proto";
 
 option go_package = "github.com/evmos/ethermint/x/evm/types";
 
@@ -22,6 +24,8 @@ service Msg {
   // UpdateParams defined a governance operation for updating the x/evm module parameters.
   // The authority is hard-coded to the Cosmos SDK x/gov module account
   rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+  // UpdateZeroGas defines a method for updating the zero gas config
+  rpc UpdateZeroGas(MsgUpdateZeroGas) returns (MsgUpdateZeroGasResponse);
 }
 
 // MsgEthereumTx encapsulates an Ethereum transaction as an SDK message.
@@ -187,3 +191,22 @@ message MsgUpdateParams {
 // MsgUpdateParamsResponse defines the response structure for executing a
 // MsgUpdateParams message.
 message MsgUpdateParamsResponse {}
+
+// MsgUpdateZeroGas defines a Msg for updating the x/evm module zero gas config.
+message MsgUpdateZeroGas {
+  option (cosmos.msg.v1.signer) = "authority";
+
+  // authority is the address that controls the module (defaults to x/gov unless
+  // overwritten).
+  string authority = 1 [ (cosmos_proto.scalar) = "cosmos.AddressString" ];
+  option (amino.name) = "basechain/MsgUpdateZeroGasConfig";
+
+  option (gogoproto.equal) = false;
+
+  // metadata defines the zero gas to update.
+  UpdateZeroGasMetadata metadata = 2 [(gogoproto.nullable) = false];
+}
+
+// MsgUpdateZeroGasResponse defines the response structure for executing a
+// MsgUpdateZeroGas message.
+message MsgUpdateZeroGasResponse {}

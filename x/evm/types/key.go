@@ -45,6 +45,7 @@ const (
 	prefixStorage
 	prefixParams
 	prefixHeaderHash
+	prefixZeroGas
 )
 
 // prefix bytes for the EVM object store
@@ -60,6 +61,7 @@ var (
 	KeyPrefixStorage    = []byte{prefixStorage}
 	KeyPrefixParams     = []byte{prefixParams}
 	KeyPrefixHeaderHash = []byte{prefixHeaderHash}
+	KeyPrefixZeroGas    = []byte{prefixZeroGas}
 )
 
 // Object Store key prefixes
@@ -118,4 +120,29 @@ func GetHeaderHashKey(height uint64) []byte {
 	key[0] = prefixHeaderHash
 	binary.BigEndian.PutUint64(key[1:], height)
 	return key[:]
+}
+
+// GetZeroGasByAddrKey returns the key for the zero gas  by contract address
+func GetZeroGasByAddrKey(addr []byte) []byte {
+	// contractAddr is 20 bytes
+	return append(KeyPrefixZeroGas, addr...)
+}
+
+// ParseZeroGasByAddrKey parses the key for the zero gas  by contract address
+func ParseZeroGasByAddrKey(key []byte) []byte {
+	addr := key[len(KeyPrefixZeroGas) : len(KeyPrefixZeroGas)+20]
+	return addr
+}
+
+// GetZeroGasByAddrSigKey returns the key for the zero gas  by contract address and signature
+func GetZeroGasByAddrSigKey(addr []byte, sig []byte) []byte {
+	// contractAddr is 20 bytes, signature is 4 bytes
+	return append(GetZeroGasByAddrKey(addr), sig...)
+}
+
+// ParseZeroGasByAddrSigKey parses the key for the zero gas  by contract address and signature
+func ParseZeroGasByAddrSigKey(key []byte) ([]byte, []byte) {
+	addr := key[len(KeyPrefixZeroGas) : len(KeyPrefixZeroGas)+20]
+	sig := key[len(KeyPrefixZeroGas)+20:]
+	return addr, sig
 }

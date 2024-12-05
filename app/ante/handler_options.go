@@ -16,6 +16,8 @@
 package ante
 
 import (
+	"math/big"
+
 	errorsmod "cosmossdk.io/errors"
 	storetypes "cosmossdk.io/store/types"
 	txsigning "cosmossdk.io/x/tx/signing"
@@ -91,6 +93,35 @@ func newEthAnteHandler(options HandlerOptions) sdk.AnteHandler {
 		feemarketParams := &blockCfg.FeeMarketParams
 		baseFee := blockCfg.BaseFee
 		rules := blockCfg.Rules
+
+		isZeroGas := false
+		fromAddrs := make([]sdk.AccAddress, 0)
+		for _, m := range tx.GetMsgs() {
+			msgEthTx, ok := m.(*evmtypes.MsgEthereumTx)
+			if !ok {
+				return ctx, errorsmod.Wrapf(errortypes.ErrUnknownRequest, "invalid message type %T, expected %T", m, (*evmtypes.MsgEthereumTx)(nil))
+			}
+			msg := msgEthTx.AsMessage(nil)
+
+			fromAddrs = append(fromAddrs, msg.From.Bytes())
+
+			if msg.To != nil && len(msg.Data) >= 4 {
+				toAddr := msg.To.Bytes()
+				signature := msg.Data[:4]
+				if options.EvmKeeper.HasZeroGas(ctx, toAddr, signature) {
+					isZeroGas = true
+				}
+			}
+		}
+		if isZeroGas {
+			for _, fromAddr := range fromAddrs {
+				if options.AccountKeeper.GetAccount(ctx, fromAddr) == nil {
+					newAcc := options.AccountKeeper.NewAccountWithAddress(ctx, fromAddr)
+					options.AccountKeeper.SetAccount(ctx, newAcc)
+				}
+			}
+			baseFee = big.NewInt(0)
+		}
 
 		// all transactions must implement FeeTx
 		_, ok := tx.(sdk.FeeTx)

@@ -407,6 +407,64 @@ func (_m *EVMQueryClient) ValidatorAccount(ctx context.Context, in *types.QueryV
 	return r0, r1
 }
 
+func (_m *EVMQueryClient) ZeroGas(ctx context.Context, in *types.QueryZeroGasRequest, opts ...grpc.CallOption) (*types.QueryZeroGasResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	var r0 *types.QueryZeroGasResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *types.QueryZeroGasRequest, ...grpc.CallOption) *types.QueryZeroGasResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*types.QueryZeroGasResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *types.QueryZeroGasRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+func (_m *EVMQueryClient) AllZeroGas(ctx context.Context, in *types.QueryAllZeroGasRequest, opts ...grpc.CallOption) (*types.QueryAllZeroGasResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	var r0 *types.QueryAllZeroGasResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *types.QueryAllZeroGasRequest, ...grpc.CallOption) *types.QueryAllZeroGasResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*types.QueryAllZeroGasResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *types.QueryAllZeroGasRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 type mockConstructorTestingTNewEVMQueryClient interface {
 	mock.TestingT
 	Cleanup(func())

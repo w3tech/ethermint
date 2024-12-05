@@ -6,6 +6,7 @@ import "ethermint/evm/v1/tx.proto";
 import "ethermint/evm/v1/log.proto";
 import "ethermint/evm/v1/params.proto";
 import "ethermint/evm/v1/trace_config.proto";
+import "ethermint/evm/v1/zero_gas.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
@@ -80,6 +81,16 @@ service Query {
   // it's similar to feemarket module's method, but also checks london hardfork status.
   rpc BaseFee(QueryBaseFeeRequest) returns (QueryBaseFeeResponse) {
     option (google.api.http).get = "/ethermint/evm/v1/base_fee";
+  }
+
+  // ZeroGas queries the zero gas config for a given contract address and signature
+  rpc ZeroGas(QueryZeroGasRequest) returns (QueryZeroGasResponse) {
+    option (google.api.http).get = "/ethermint/evm/v1/zero_gas";
+  }
+
+  // AllZeroGas queries all the zero gas
+  rpc AllZeroGas(QueryAllZeroGasRequest) returns (QueryAllZeroGasResponse) {
+    option (google.api.http).get = "/ethermint/evm/v1/all_zero_gas";
   }
 }
 
@@ -335,4 +346,25 @@ message QueryBaseFeeRequest {}
 message QueryBaseFeeResponse {
   // base_fee is the EIP1559 base fee
   string base_fee = 1 [(gogoproto.customtype) = "cosmossdk.io/math.Int"];
+}
+
+// QueryZeroGasRequest defines ZeroGas request
+message QueryZeroGasRequest {
+  // contract_address is the contract address to query the zero gas for
+  string contract_address = 1;
+}
+
+// QueryZeroGasResponse defines ZeroGas response
+message QueryZeroGasResponse {
+  // items is the zero gas items
+  repeated string signatures = 1;
+}
+
+// QueryAllZeroGasRequest defines AllZeroGas request
+message QueryAllZeroGasRequest {}
+
+// QueryAllZeroGasResponse defines AllZeroGas response
+message QueryAllZeroGasResponse {
+  // items is the zero gas items
+  repeated ZeroGas items = 1 [ (gogoproto.nullable) = false ];
 }

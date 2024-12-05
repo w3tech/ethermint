@@ -33,6 +33,7 @@ type EVMKeeper interface {
 	ChainID() *big.Int
 	EVMBlockConfig(sdk.Context, *big.Int) (*evmkeeper.EVMBlockConfig, error)
 
+	HasZeroGas(ctx sdk.Context, addr []byte, sig []byte) bool
 	DeductTxCostsFromUserBalance(ctx sdk.Context, fees sdk.Coins, from common.Address) error
 }
 

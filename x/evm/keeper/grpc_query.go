@@ -767,3 +767,23 @@ func getChainID(ctx sdk.Context, chainID int64) (*big.Int, error) {
 	}
 	return big.NewInt(chainID), nil
 }
+
+// ZeroGas implements the Query/ZeroGas gRPC method
+func (k Keeper) ZeroGas(c context.Context, req *types.QueryZeroGasRequest) (*types.QueryZeroGasResponse, error) {
+	ctx := sdk.UnwrapSDKContext(c)
+
+	if !common.IsHexAddress(req.ContractAddress) {
+		return nil, status.Errorf(codes.Internal, "invalid contract address: %s", req.ContractAddress)
+	}
+
+	contractAddr := common.FromHex(req.ContractAddress)
+	sigs := k.GetAllZeroGasSigsByAddr(ctx, contractAddr)
+	return &types.QueryZeroGasResponse{Signatures: sigs}, nil
+}
+
+// AllZeroGas implements the Query/AllZeroGas gRPC method
+func (k Keeper) AllZeroGas(c context.Context, req *types.QueryAllZeroGasRequest) (*types.QueryAllZeroGasResponse, error) {
+	ctx := sdk.UnwrapSDKContext(c)
+	items := k.GetAllZeroGas(ctx)
+	return &types.QueryAllZeroGasResponse{Items: items}, nil
+}

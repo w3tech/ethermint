@@ -39,6 +39,8 @@ func GetQueryCmd() *cobra.Command {
 		GetStorageCmd(),
 		GetCodeCmd(),
 		GetParamsCmd(),
+		GetZeroGasCmd(),
+		GetAllZeroGasCmd(),
 	)
 	return cmd
 }
@@ -136,6 +138,62 @@ func GetParamsCmd() *cobra.Command {
 			queryClient := types.NewQueryClient(clientCtx)
 
 			res, err := queryClient.Params(cmd.Context(), &types.QueryParamsRequest{})
+			if err != nil {
+				return err
+			}
+
+			return clientCtx.PrintProto(res)
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
+}
+
+// GetZeroGasCmd queries the zero gas for a given contract address
+func GetZeroGasCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "zero-gas ADDRESS",
+		Short: "Get the zero gas for a given contract address",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			queryClient := types.NewQueryClient(clientCtx)
+
+			res, err := queryClient.ZeroGas(cmd.Context(), &types.QueryZeroGasRequest{
+				ContractAddress: args[0],
+			})
+			if err != nil {
+				return err
+			}
+
+			return clientCtx.PrintProto(res)
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
+}
+
+// GetAllZeroGasCmd queries the all zero gas for a given contract address
+func GetAllZeroGasCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "all-zero-gas",
+		Short: "Get the all zero gas",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			queryClient := types.NewQueryClient(clientCtx)
+
+			res, err := queryClient.AllZeroGas(cmd.Context(), &types.QueryAllZeroGasRequest{})
 			if err != nil {
 				return err
 			}

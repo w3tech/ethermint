@@ -82,6 +82,25 @@ func InitGenesis(
 		}
 	}
 
+	for _, config := range data.ZeroGas {
+		if !common.IsHexAddress(config.ContractAddress) {
+			panic(fmt.Sprintf("invalid contract address: %s", config.ContractAddress))
+		}
+
+		contractAddr := common.FromHex(config.ContractAddress)
+		for _, s := range config.Signatures {
+			sig := common.FromHex(s)
+			if len(sig) != 4 {
+				panic(fmt.Sprintf("invalid signature: %s", s))
+			}
+
+			err = k.SetZeroGas(ctx, contractAddr, sig)
+			if err != nil {
+				panic(fmt.Errorf("error setting zero gas config %s", err))
+			}
+		}
+	}
+
 	return []abci.ValidatorUpdate{}
 }
 
@@ -112,5 +131,6 @@ func ExportGenesis(ctx sdk.Context, k *keeper.Keeper, ak types.AccountKeeper) *t
 	return &types.GenesisState{
 		Accounts: ethGenAccounts,
 		Params:   k.GetParams(ctx),
+		ZeroGas:  k.GetAllZeroGas(ctx),
 	}
 }

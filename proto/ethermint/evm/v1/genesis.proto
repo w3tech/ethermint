@@ -2,6 +2,7 @@ syntax = "proto3";
 package ethermint.evm.v1;
 
 import "ethermint/evm/v1/params.proto";
+import "ethermint/evm/v1/zero_gas.proto";
 import "ethermint/evm/v1/state.proto";
 import "gogoproto/gogo.proto";
 
@@ -13,6 +14,8 @@ message GenesisState {
   repeated GenesisAccount accounts = 1 [(gogoproto.nullable) = false];
   // params defines all the parameters of the module.
   Params params = 2 [(gogoproto.nullable) = false];
+  // zero_gas defines the zero gas config for the module.
+  repeated ZeroGas zero_gas = 3 [(gogoproto.nullable) = false];
 }
 
 // GenesisAccount defines an account to be initialized in the genesis state.

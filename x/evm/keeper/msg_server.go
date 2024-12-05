@@ -31,6 +31,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/hashicorp/go-metrics"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	ethermint "github.com/evmos/ethermint/types"
 	"github.com/evmos/ethermint/x/evm/types"
 )
@@ -149,4 +151,52 @@ func (k *Keeper) UpdateParams(goCtx context.Context, req *types.MsgUpdateParams)
 	}
 
 	return &types.MsgUpdateParamsResponse{}, nil
+}
+
+func (k *Keeper) UpdateZeroGas(goCtx context.Context, req *types.MsgUpdateZeroGas) (*types.MsgUpdateZeroGasResponse, error) {
+	if k.authority.String() != req.Authority {
+		return nil, errorsmod.Wrapf(govtypes.ErrInvalidSigner, "invalid authority, expected %s, got %s", k.authority.String(), req.Authority)
+	}
+
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	for _, item := range req.Metadata.AddItems {
+		if !common.IsHexAddress(item.ContractAddress) {
+			return nil, errorsmod.Wrapf(govtypes.ErrInvalidProposalContent, "invalid contract address: %s", item.ContractAddress)
+		}
+
+		contractAddr := common.FromHex(item.ContractAddress)
+		for _, s := range item.Signatures {
+			sig := common.FromHex(s)
+			if len(sig) != 4 {
+				return nil, errorsmod.Wrapf(govtypes.ErrInvalidProposalContent, "invalid signature: %s", s)
+			}
+
+			err := k.SetZeroGas(ctx, contractAddr, sig)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	for _, item := range req.Metadata.RemoveItems {
+		if !common.IsHexAddress(item.ContractAddress) {
+			return nil, errorsmod.Wrapf(govtypes.ErrInvalidProposalContent, "invalid contract address: %s", item.ContractAddress)
+		}
+
+		contractAddr := common.FromHex(item.ContractAddress)
+		for _, s := range item.Signatures {
+			sig := common.FromHex(s)
+			if len(sig) != 4 {
+				return nil, errorsmod.Wrapf(govtypes.ErrInvalidProposalContent, "invalid signature: %s", s)
+			}
+
+			err := k.DeleteZeroGas(ctx, contractAddr, sig)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return &types.MsgUpdateZeroGasResponse{}, nil
 }

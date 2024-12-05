@@ -1,0 +1,23 @@
+syntax = "proto3";
+package ethermint.evm.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/evmos/ethermint/x/evm/types";
+
+// ZeroGas defines the parameters for zero gas fee transactions
+message ZeroGas {
+  // contract_address specifies the target contract address for zero gas fee transactions
+  string contract_address = 1 [(gogoproto.moretags) = "yaml:\"contract_address\""];
+  // signatures is a list of function signatures that will have zero gas fee
+  // when called on the specified contract_address
+  repeated string signatures = 2 [(gogoproto.moretags) = "yaml:\"signatures\""];
+}
+
+message UpdateZeroGasMetadata {
+  // zero gas items to be added
+  repeated ZeroGas add_items = 1;
+
+  // zero gas items to be removed
+  repeated ZeroGas remove_items = 2;
+}
