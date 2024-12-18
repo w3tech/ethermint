@@ -142,7 +142,8 @@ type PublicAPI struct {
 	backend backend.EVMBackend
 
 	// counters
-	sendRawTransaction uint32
+	reqSendRawTransaction uint32
+	resSendRawTransaction uint32
 	// File for logging counters
 	counterFile *os.File
 }
@@ -154,7 +155,7 @@ func NewPublicAPI(logger log.Logger, backend backend.EVMBackend) *PublicAPI {
 	if err != nil {
 		logger.Error("Failed to get home directory", "err", err)
 	}
-	counterFile, err := os.OpenFile(homeDir+"/customlogs/ethermint-backend-public-api-counters.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	counterFile, err := os.OpenFile(homeDir+"/customlogs/ethermint_backend-public-api-counters.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		logger.Error("Failed to open counters.log", "err", err)
 	}
@@ -177,14 +178,15 @@ func (e *PublicAPI) logCounters() {
 		select {
 		case <-ticker.C:
 			// Atomically load and reset counters
-			sendRawTransaction := atomic.SwapUint32(&e.sendRawTransaction, 0)
+			reqSendRawTransaction := atomic.SwapUint32(&e.reqSendRawTransaction, 0)
+			resSendRawTransaction := atomic.SwapUint32(&e.resSendRawTransaction, 0)
 
 			// Get the current timestamp
 			timestamp := time.Now().UTC().UnixNano()
 
 			// Create a CSV line
-			logLine := fmt.Sprintf("%d,%d\n",
-				timestamp, sendRawTransaction)
+			logLine := fmt.Sprintf("%d,%d,%d\n",
+				timestamp, reqSendRawTransaction, resSendRawTransaction)
 
 			// Append the line to the file
 			if _, err := e.counterFile.WriteString(logLine); err != nil {
@@ -274,11 +276,12 @@ func (e *PublicAPI) GetTransactionByBlockNumberAndIndex(blockNum rpctypes.BlockN
 // SendRawTransaction send a raw Ethereum transaction.
 func (e *PublicAPI) SendRawTransaction(data hexutil.Bytes) (common.Hash, error) {
 	e.logger.Debug("eth_sendRawTransaction", "length", len(data))
+	atomic.AddUint32(&e.reqSendRawTransaction, 1)
 	h, err := e.backend.SendRawTransaction(data)
+	atomic.AddUint32(&e.resSendRawTransaction, 1)
 	if err != nil {
 		return h, err
 	}
-	atomic.AddUint32(&e.sendRawTransaction, 1)
 	return h, nil
 }
 
