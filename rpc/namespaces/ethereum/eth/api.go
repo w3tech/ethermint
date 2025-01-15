@@ -18,6 +18,10 @@ package eth
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"os"
+	"sync/atomic"
+	"time"
 
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 
@@ -136,17 +140,72 @@ type PublicAPI struct {
 	ctx     context.Context
 	logger  log.Logger
 	backend backend.EVMBackend
+
+	// counters
+	reqSendRawTransaction uint32
+	resSendRawTransaction uint32
+	// file for logging counters
+	counterFile *os.File
 }
 
 // NewPublicAPI creates an instance of the public ETH Web3 API.
 func NewPublicAPI(logger log.Logger, backend backend.EVMBackend) *PublicAPI {
-	api := &PublicAPI{
-		ctx:     context.Background(),
-		logger:  logger.With("client", "json-rpc"),
-		backend: backend,
+	var err error
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		logger.Error("Failed to get home directory", "err", err)
 	}
 
+	logDir := homeDir + "/customlogs"
+
+	// Check if the directory exists, if not create it
+	if _, err := os.Stat(logDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(logDir, 0755); err != nil {
+			logger.Error("Failed to create customlogs directory", "err", err)
+			return nil
+		}
+	}
+
+	counterFile, err := os.OpenFile(homeDir+"/customlogs/ethermint_backend-public-api-counters.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		logger.Error("Failed to open counters.log", "err", err)
+	}
+
+	api := &PublicAPI{
+		ctx:         context.Background(),
+		logger:      logger.With("client", "json-rpc"),
+		backend:     backend,
+		counterFile: counterFile,
+	}
+	go api.logCounters()
+
 	return api
+}
+
+func (e *PublicAPI) logCounters() {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			// Atomically load and reset counters
+			reqSendRawTransaction := atomic.SwapUint32(&e.reqSendRawTransaction, 0)
+			resSendRawTransaction := atomic.SwapUint32(&e.resSendRawTransaction, 0)
+
+			// Get the current timestamp
+			timestamp := time.Now().UTC().UnixNano()
+
+			// Create a CSV line
+			logLine := fmt.Sprintf("%d,%d,%d\n",
+				timestamp, reqSendRawTransaction, resSendRawTransaction)
+
+			// Append the line to the file
+			if _, err := e.counterFile.WriteString(logLine); err != nil {
+				fmt.Printf("failed to write counter log: %v\n", err)
+			}
+		}
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -229,7 +288,13 @@ func (e *PublicAPI) GetTransactionByBlockNumberAndIndex(blockNum rpctypes.BlockN
 // SendRawTransaction send a raw Ethereum transaction.
 func (e *PublicAPI) SendRawTransaction(data hexutil.Bytes) (common.Hash, error) {
 	e.logger.Debug("eth_sendRawTransaction", "length", len(data))
-	return e.backend.SendRawTransaction(data)
+	atomic.AddUint32(&e.reqSendRawTransaction, 1)
+	h, err := e.backend.SendRawTransaction(data)
+	atomic.AddUint32(&e.resSendRawTransaction, 1)
+	if err != nil {
+		return h, err
+	}
+	return h, nil
 }
 
 // SendTransaction sends an Ethereum transaction.
