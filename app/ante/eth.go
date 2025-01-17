@@ -159,14 +159,22 @@ func CheckEthGasConsume(
 			continue
 		}
 
-		fees, err := keeper.VerifyFee(msgEthTx, evmDenom, baseFee, rules.IsHomestead, rules.IsIstanbul, rules.IsShanghai, ctx.IsCheckTx())
+		isZeroGas, err := checkZeroGas(ctx, tx, evmKeeper)
 		if err != nil {
-			return ctx, errorsmod.Wrapf(err, "failed to verify the fees")
+			return ctx, errorsmod.Wrapf(err, "failed to check zero gas")
 		}
 
-		err = evmKeeper.DeductTxCostsFromUserBalance(ctx, fees, common.BytesToAddress(msgEthTx.From))
-		if err != nil {
-			return ctx, errorsmod.Wrapf(err, "failed to deduct transaction costs from user balance")
+		fees := sdk.NewCoins(sdk.NewCoin(evmDenom, sdkmath.NewInt(0)))
+		if !isZeroGas {
+			fees, err := keeper.VerifyFee(msgEthTx, evmDenom, baseFee, rules.IsHomestead, rules.IsIstanbul, rules.IsShanghai, ctx.IsCheckTx())
+			if err != nil {
+				return ctx, errorsmod.Wrapf(err, "failed to verify the fees")
+			}
+
+			err = evmKeeper.DeductTxCostsFromUserBalance(ctx, fees, common.BytesToAddress(msgEthTx.From))
+			if err != nil {
+				return ctx, errorsmod.Wrapf(err, "failed to deduct transaction costs from user balance")
+			}
 		}
 
 		events = append(events,
@@ -207,6 +215,30 @@ func CheckEthGasConsume(
 
 	// we know that we have enough gas on the pool to cover the intrinsic gas
 	return newCtx, nil
+}
+
+func checkZeroGas(ctx sdk.Context, tx sdk.Tx, evmKeeper EVMKeeper) (bool, error) {
+	isZeroGas := false
+	fromAddrs := make([]sdk.AccAddress, 0)
+	for _, m := range tx.GetMsgs() {
+		msgEthTx, ok := m.(*evmtypes.MsgEthereumTx)
+		if !ok {
+			return false, errorsmod.Wrapf(errortypes.ErrUnknownRequest, "invalid message type %T, expected %T", m, (*evmtypes.MsgEthereumTx)(nil))
+		}
+		msg := msgEthTx.AsMessage(nil)
+
+		fromAddrs = append(fromAddrs, msg.From.Bytes())
+
+		if msg.To != nil && len(msg.Data) >= 4 {
+			toAddr := msg.To.Bytes()
+			signature := msg.Data[:4]
+			if evmKeeper.HasZeroGas(ctx, toAddr, signature) {
+				isZeroGas = true
+			}
+		}
+	}
+
+	return isZeroGas, nil
 }
 
 // CheckEthCanTransfer creates an EVM from the message and calls the BlockContext CanTransfer function to

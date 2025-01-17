@@ -223,14 +223,24 @@ func (k *Keeper) ApplyTransaction(ctx sdk.Context, msgEth *types.MsgEthereumTx) 
 		}
 	}
 
-	// refund gas in order to match the Ethereum gas consumption instead of the default SDK one.
-	if err = k.RefundGas(ctx, msg, msg.GasLimit-res.GasUsed, cfg.Params.EvmDenom); err != nil {
-		return nil, errorsmod.Wrapf(err, "failed to refund leftover gas to sender %s", msg.From)
+	// If to address is not nil and the first 4 bytes of the data is a zero gas signature
+	// gas fee is not deducted from the sender at anteHandler, so gas refund is not needed
+	var hasZeroGas bool
+	if msg.To != nil && len(msg.Data) >= 4 {
+		hasZeroGas = k.HasZeroGas(tmpCtx, msg.To.Bytes(), msg.Data[:4])
 	}
 
-	totalGasUsed, err := k.AddTransientGasUsed(ctx, res.GasUsed)
-	if err != nil {
-		return nil, errorsmod.Wrap(err, "failed to add transient gas used")
+	var totalGasUsed uint64
+	if !hasZeroGas {
+		// refund gas in order to match the Ethereum gas consumption instead of the default SDK one.
+		if err = k.RefundGas(ctx, msg, msg.GasLimit-res.GasUsed, cfg.Params.EvmDenom); err != nil {
+			return nil, errorsmod.Wrapf(err, "failed to refund leftover gas to sender %s", msg.From)
+		}
+
+		totalGasUsed, err = k.AddTransientGasUsed(ctx, res.GasUsed)
+		if err != nil {
+			return nil, errorsmod.Wrap(err, "failed to add transient gas used")
+		}
 	}
 
 	// reset the gas meter for current cosmos transaction
@@ -306,6 +316,11 @@ func (k *Keeper) ApplyMessageWithConfig(
 		ret   []byte // return bytes from evm execution
 		vmErr error  // vm errors do not effect consensus and are therefore not assigned to err
 	)
+
+	var hasZeroGas bool
+	if msg.To != nil && len(msg.Data) >= 4 {
+		hasZeroGas = k.HasZeroGas(ctx, msg.To.Bytes(), msg.Data[:4])
+	}
 
 	// return error if contract creation or call are disabled through governance
 	if !cfg.Params.EnableCreate && msg.To == nil {
@@ -434,6 +449,11 @@ func (k *Keeper) ApplyMessageWithConfig(
 	}
 
 	gasUsed := sdkmath.LegacyMaxDec(minimumGasUsed, sdkmath.LegacyNewDec(tempGasUsed)).TruncateInt().Uint64()
+
+	if hasZeroGas {
+		gasUsed = uint64(0)
+	}
+
 	// reset leftoverGas, to be used by the tracer
 	leftoverGas = msg.GasLimit - gasUsed
 

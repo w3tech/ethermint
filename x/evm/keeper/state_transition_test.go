@@ -674,9 +674,10 @@ func (suite *StateTransitionTestSuite) TestApplyMessageWithConfig() {
 	)
 
 	testCases := []struct {
-		name     string
-		malleate func()
-		expErr   bool
+		name            string
+		malleate        func()
+		expErr          bool
+		expectedGasUsed uint64
 	}{
 		{
 			"messsage applied ok",
@@ -695,6 +696,7 @@ func (suite *StateTransitionTestSuite) TestApplyMessageWithConfig() {
 				suite.Require().NoError(err)
 			},
 			false,
+			params.TxGas,
 		},
 		{
 			"call contract tx with config param EnableCall = false",
@@ -714,6 +716,7 @@ func (suite *StateTransitionTestSuite) TestApplyMessageWithConfig() {
 				suite.Require().NoError(err)
 			},
 			true,
+			params.TxGas,
 		},
 		{
 			"create contract tx with config param EnableCreate = false",
@@ -723,6 +726,33 @@ func (suite *StateTransitionTestSuite) TestApplyMessageWithConfig() {
 				config.Params.EnableCreate = false
 			},
 			true,
+			params.TxGas,
+		},
+		{
+			"contract method call that is registerd as zero gas method",
+			func() {
+				testContractAddr := suite.DeployTestContract(suite.T(), suite.Address, big.NewInt(1000), false)
+
+				// register ERC20 transfer method as zero gas method
+				transferMethodSignature := types.ERC20Contract.ABI.Methods["transfer"].ID
+				err := suite.App.EvmKeeper.SetZeroGas(suite.Ctx, testContractAddr.Bytes(), transferMethodSignature)
+				suite.Require().NoError(err)
+
+				// call ERC20 transfer
+				txMsg, baseFee, err := newEthMsgTx(
+					vmdb.GetNonce(suite.Address),
+					suite.Address,
+					suite.Signer,
+					signer,
+					ethtypes.AccessListTxType,
+					nil,
+					nil,
+				)
+				suite.Require().NoError(err)
+				msg = txMsg.AsMessage(baseFee)
+			},
+			false,
+			0,
 		},
 	}
 

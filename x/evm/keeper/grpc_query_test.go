@@ -680,6 +680,26 @@ func (suite *GRPCServerTestSuiteSuite) TestEstimateGas() {
 			51880,
 			false,
 		},
+		// estimate gas of an erc20 transfer that is registered as zero gas method
+		{
+			"erc20 transfer that is registered as zero gas method",
+			func() {
+				contractAddr := suite.deployTestContract(suite.Address)
+				suite.Commit(suite.T())
+
+				// register ERC20 transfer method as zero gas method
+				signature := types.ERC20Contract.ABI.Methods["transfer"].ID
+				suite.App.EvmKeeper.SetZeroGas(suite.Ctx, contractAddr.Bytes(), signature)
+				suite.Commit(suite.T())
+
+				transferData, err := types.ERC20Contract.ABI.Pack("transfer", common.HexToAddress("0x378c50D9264C63F3F92B806d4ee56E9D86FfB3Ec"), big.NewInt(1000))
+				suite.Require().NoError(err)
+				args = types.TransactionArgs{To: &contractAddr, From: &suite.Address, Data: (*hexutil.Bytes)(&transferData)}
+			},
+			true,
+			0,
+			false,
+		},
 		// repeated tests with enableFeemarket
 		{
 			"default args w/ enableFeemarket",
@@ -850,6 +870,7 @@ func (suite *GRPCServerTestSuiteSuite) TestTraceTx() {
 
 	testCases := []struct {
 		msg             string
+		beforeTx        func(contractAddr common.Address)
 		malleate        func()
 		expPass         bool
 		traceResponse   string
@@ -863,6 +884,21 @@ func (suite *GRPCServerTestSuiteSuite) TestTraceTx() {
 			},
 			expPass:       true,
 			traceResponse: "{\"gas\":34828,\"failed\":false,\"returnValue\":\"0000000000000000000000000000000000000000000000000000000000000001\",\"structLogs\":[{\"pc\":0,\"op\":\"PUSH1\",\"gas\":",
+		},
+		{
+			msg: "default trace for zero gas transfer",
+			beforeTx: func(contractAddr common.Address) {
+				// register ERC20 transfer method as zero gas method
+				signature := types.ERC20Contract.ABI.Methods["transfer"].ID
+				suite.App.EvmKeeper.SetZeroGas(suite.Ctx, contractAddr.Bytes(), signature)
+				suite.Commit(suite.T())
+			},
+			malleate: func() {
+				traceConfig = nil
+				predecessors = []*types.MsgEthereumTx{}
+			},
+			expPass:       true,
+			traceResponse: "{\"gas\":0,\"failed\":false,\"returnValue\":\"0000000000000000000000000000000000000000000000000000000000000001\",\"structLogs\":[{\"pc\":0,\"op\":\"PUSH1\",\"gas\":",
 		},
 		{
 			msg: "default trace with filtered response",
@@ -1052,6 +1088,11 @@ func (suite *GRPCServerTestSuiteSuite) TestTraceTx() {
 			// Deploy contract
 			contractAddr := suite.deployTestContract(suite.Address)
 			suite.Commit(suite.T())
+
+			if tc.beforeTx != nil {
+				tc.beforeTx(contractAddr)
+			}
+
 			// Generate token transfer transaction
 			txMsg = suite.transferERC20Token(suite.T(), contractAddr, suite.Address, common.HexToAddress("0x378c50D9264C63F3F92B806d4ee56E9D86FfB3Ec"), sdkmath.NewIntWithDecimal(1, 18).BigInt())
 			suite.Commit(suite.T())

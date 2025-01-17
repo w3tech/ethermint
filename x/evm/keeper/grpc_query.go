@@ -346,6 +346,14 @@ func (k Keeper) EstimateGas(c context.Context, req *types.EthCallRequest) (*type
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	// If to address is contract address and method is registered as zero gas method, return with 0 gas
+	var hasZeroGas bool
+	if msg.To != nil && len(msg.Data) >= 4 {
+		if k.HasZeroGas(ctx, msg.To.Bytes(), msg.Data[:4]) {
+			hasZeroGas = true
+		}
+	}
+
 	// NOTE: the errors from the executable below should be consistent with go-ethereum,
 	// so we don't wrap them with the gRPC status code
 
@@ -404,6 +412,11 @@ func (k Keeper) EstimateGas(c context.Context, req *types.EthCallRequest) (*type
 			return nil, fmt.Errorf("gas required exceeds allowance (%d)", gasCap)
 		}
 	}
+
+	if hasZeroGas {
+		return &types.EstimateGasResponse{Gas: 0}, nil
+	}
+
 	return &types.EstimateGasResponse{Gas: hi}, nil
 }
 
