@@ -176,11 +176,11 @@ func postFixPulsarMessage(msg proto.Message) {
 	}
 
 	if m, ok := msg.(*evmv1.MsgUpdateParams); ok {
-		m.Params.ChainConfig.CancunBlock = "10"
+		m.Params.ChainConfig.CancunTime = "10"
 	}
 
 	if m, ok := msg.(*evmv1.Params); ok {
-		m.ChainConfig.CancunBlock = "10"
+		m.ChainConfig.CancunTime = "10"
 	}
 
 	if m, ok := msg.(*feemarketv1.MsgUpdateParams); ok {

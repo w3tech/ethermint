@@ -358,7 +358,6 @@ func (msg MsgEthereumTx) AsMessage(signer ethtypes.Signer, baseFee *big.Int) (co
 			return core.Message{}, err
 		}
 	}
-	// TODO add the new fields (related to blobs) to txData
 	ethMsg := core.Message{
 		From:       from,
 		To:         txData.GetTo(),

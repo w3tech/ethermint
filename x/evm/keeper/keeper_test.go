@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/holiman/uint256"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -35,7 +36,6 @@ import (
 	ethermint "github.com/evmos/ethermint/types"
 	"github.com/evmos/ethermint/x/evm/statedb"
 	"github.com/evmos/ethermint/x/evm/types"
-	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -138,8 +138,8 @@ func (suite *KeeperTestSuite) SetupAppWithT(checkTx bool, t require.TestingT) {
 			evmGenesis.Params.ChainConfig.ArrowGlacierBlock = &maxInt
 			evmGenesis.Params.ChainConfig.GrayGlacierBlock = &maxInt
 			evmGenesis.Params.ChainConfig.MergeNetsplitBlock = &maxInt
-			evmGenesis.Params.ChainConfig.ShanghaiBlock = &maxInt
-			evmGenesis.Params.ChainConfig.CancunBlock = &maxInt
+			evmGenesis.Params.ChainConfig.ShanghaiTime = &maxInt
+			evmGenesis.Params.ChainConfig.CancunTime = &maxInt
 			genesis[types.ModuleName] = app.AppCodec().MustMarshalJSON(evmGenesis)
 		}
 		return genesis
@@ -225,7 +225,7 @@ func (suite *KeeperTestSuite) SetupAppWithT(checkTx bool, t require.TestingT) {
 	suite.clientCtx = client.Context{}.WithTxConfig(suite.app.TxConfig())
 	suite.ethSigner = ethtypes.LatestSignerForChainID(suite.app.EvmKeeper.ChainID())
 	suite.appCodec = suite.app.AppCodec()
-	suite.denom = evmtypes.DefaultEVMDenom
+	suite.denom = types.DefaultEVMDenom
 }
 
 func (suite *KeeperTestSuite) EvmDenom() string {
@@ -500,7 +500,7 @@ func (suite *KeeperTestSuite) TestGetAccountStorage() {
 
 func (suite *KeeperTestSuite) TestGetAccountOrEmpty() {
 	empty := statedb.Account{
-		Balance:  new(big.Int),
+		Balance:  new(uint256.Int),
 		CodeHash: types.EmptyCodeHash,
 	}
 

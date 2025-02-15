@@ -44,7 +44,6 @@ type HandlerOptions struct {
 	SignModeHandler         *txsigning.HandlerMap
 	SigGasConsumer          func(meter storetypes.GasMeter, sig signing.SignatureV2, params authtypes.Params) error
 	MaxTxGasWanted          uint64
-	EnablePreimageRecording bool
 	ExtensionOptionChecker  ante.ExtensionOptionChecker
 	TxFeeChecker            ante.TxFeeChecker
 	DisabledAuthzMsgs       []string

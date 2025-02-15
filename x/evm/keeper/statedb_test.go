@@ -14,6 +14,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	ethparams "github.com/ethereum/go-ethereum/params"
+	"github.com/holiman/uint256"
+
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
@@ -33,11 +36,11 @@ func (suite *KeeperTestSuite) TestCreateAccount() {
 			"reset account (keep balance)",
 			suite.address,
 			func(vmdb vm.StateDB, addr common.Address) {
-				vmdb.AddBalance(addr, big.NewInt(100))
-				suite.Require().NotZero(vmdb.GetBalance(addr).Int64())
+				vmdb.AddBalance(addr, uint256.NewInt(100))
+				suite.Require().NotZero(vmdb.GetBalance(addr).ToBig().IsUint64())
 			},
 			func(vmdb vm.StateDB, addr common.Address) {
-				suite.Require().Equal(vmdb.GetBalance(addr).Int64(), int64(100))
+				suite.Require().Equal(vmdb.GetBalance(addr).ToBig(), big.NewInt(100))
 			},
 		},
 		{
@@ -65,23 +68,18 @@ func (suite *KeeperTestSuite) TestCreateAccount() {
 func (suite *KeeperTestSuite) TestAddBalance() {
 	testCases := []struct {
 		name   string
-		amount *big.Int
+		amount *uint256.Int
 		isNoOp bool
 	}{
 		{
 			"positive amount",
-			big.NewInt(100),
+			uint256.NewInt(100),
 			false,
 		},
 		{
 			"zero amount",
-			big.NewInt(0),
+			uint256.NewInt(0),
 			true,
-		},
-		{
-			"negative amount",
-			big.NewInt(-1),
-			false, // seems to be consistent with go-ethereum's implementation
 		},
 	}
 
@@ -93,9 +91,9 @@ func (suite *KeeperTestSuite) TestAddBalance() {
 			post := vmdb.GetBalance(suite.address)
 
 			if tc.isNoOp {
-				suite.Require().Equal(prev.Int64(), post.Int64())
+				suite.Require().Equal(prev, post)
 			} else {
-				suite.Require().Equal(new(big.Int).Add(prev, tc.amount).Int64(), post.Int64())
+				suite.Require().Equal(new(uint256.Int).Add(prev, tc.amount), post)
 			}
 		})
 	}
@@ -104,35 +102,29 @@ func (suite *KeeperTestSuite) TestAddBalance() {
 func (suite *KeeperTestSuite) TestSubBalance() {
 	testCases := []struct {
 		name     string
-		amount   *big.Int
+		amount   *uint256.Int
 		malleate func(vm.StateDB)
 		isNoOp   bool
 	}{
 		{
 			"positive amount, below zero",
-			big.NewInt(100),
+			uint256.NewInt(100),
 			func(vm.StateDB) {},
 			false,
 		},
 		{
 			"positive amount, above zero",
-			big.NewInt(50),
+			uint256.NewInt(50),
 			func(vmdb vm.StateDB) {
-				vmdb.AddBalance(suite.address, big.NewInt(100))
+				vmdb.AddBalance(suite.address, uint256.NewInt(100))
 			},
 			false,
 		},
 		{
 			"zero amount",
-			big.NewInt(0),
+			uint256.NewInt(0),
 			func(vm.StateDB) {},
 			true,
-		},
-		{
-			"negative amount",
-			big.NewInt(-1),
-			func(vm.StateDB) {},
-			false,
 		},
 	}
 
@@ -146,9 +138,9 @@ func (suite *KeeperTestSuite) TestSubBalance() {
 			post := vmdb.GetBalance(suite.address)
 
 			if tc.isNoOp {
-				suite.Require().Equal(prev.Int64(), post.Int64())
+				suite.Require().Equal(prev, post)
 			} else {
-				suite.Require().Equal(new(big.Int).Sub(prev, tc.amount).Int64(), post.Int64())
+				suite.Require().Equal(new(uint256.Int).Sub(prev, tc.amount), post)
 			}
 		})
 	}
@@ -478,7 +470,8 @@ func (suite *KeeperTestSuite) TestSuicide() {
 	}
 
 	// Call Suicide
-	suite.Require().Equal(true, db.Suicide(suite.address))
+	db.SelfDestruct(suite.address)
+	suite.Require().True(db.HasSelfDestructed(suite.address))
 
 	// Check suicided is marked
 	suite.Require().Equal(true, db.HasSuicided(suite.address))
@@ -514,7 +507,7 @@ func (suite *KeeperTestSuite) TestExist() {
 	}{
 		{"success, account exists", suite.address, func(vm.StateDB) {}, true},
 		{"success, has suicided", suite.address, func(vmdb vm.StateDB) {
-			vmdb.Suicide(suite.address)
+			vmdb.SelfDestruct(suite.address)
 		}, true},
 		{"success, account doesn't exist", tests.GenerateAddress(), func(vm.StateDB) {}, false},
 	}
@@ -540,7 +533,7 @@ func (suite *KeeperTestSuite) TestEmpty() {
 		{
 			"not empty, positive balance",
 			suite.address,
-			func(vmdb vm.StateDB) { vmdb.AddBalance(suite.address, big.NewInt(100)) },
+			func(vmdb vm.StateDB) { vmdb.AddBalance(suite.address, uint256.NewInt(100)) },
 			false,
 		},
 		{"empty, account doesn't exist", tests.GenerateAddress(), func(vm.StateDB) {}, true},
@@ -723,8 +716,25 @@ func (suite *KeeperTestSuite) TestPrepareAccessList() {
 		{Address: tests.GenerateAddress(), StorageKeys: []common.Hash{common.BytesToHash([]byte("key1"))}},
 	}
 
+	rules := ethparams.Rules{
+		ChainID:          suite.ethSigner.ChainID(),
+		IsHomestead:      true,
+		IsEIP150:         true,
+		IsEIP155:         true,
+		IsEIP158:         true,
+		IsByzantium:      true,
+		IsConstantinople: true,
+		IsPetersburg:     true,
+		IsIstanbul:       true,
+		IsBerlin:         true,
+		IsLondon:         true,
+		IsMerge:          true,
+		IsShanghai:       true,
+		IsCancun:         true,
+	}
+
 	vmdb := suite.StateDB()
-	vmdb.PrepareAccessList(suite.address, &dest, precompiles, accesses)
+	vmdb.Prepare(rules, suite.address, common.Address{}, &dest, precompiles, accesses)
 
 	suite.Require().True(vmdb.AddressInAccessList(suite.address))
 	suite.Require().True(vmdb.AddressInAccessList(dest))
@@ -855,8 +865,7 @@ func (suite *KeeperTestSuite) _TestForEachStorage() {
 }
 
 func (suite *KeeperTestSuite) TestSetBalance() {
-	amount := big.NewInt(-10)
-
+	amount := common.U2560
 	testCases := []struct {
 		name     string
 		addr     common.Address
@@ -864,16 +873,16 @@ func (suite *KeeperTestSuite) TestSetBalance() {
 		expErr   bool
 	}{
 		{
-			"address without funds - invalid amount",
+			"address without funds - no amount - no-op",
 			suite.address,
 			func() {},
-			true,
+			false,
 		},
 		{
 			"mint to address",
 			suite.address,
 			func() {
-				amount = big.NewInt(100)
+				amount = uint256.NewInt(100)
 			},
 			false,
 		},
@@ -881,17 +890,9 @@ func (suite *KeeperTestSuite) TestSetBalance() {
 			"burn from address",
 			suite.address,
 			func() {
-				amount = big.NewInt(60)
+				amount = uint256.NewInt(60)
 			},
 			false,
-		},
-		{
-			"address with funds - invalid amount",
-			suite.address,
-			func() {
-				amount = big.NewInt(-10)
-			},
-			true,
 		},
 	}
 
@@ -946,7 +947,7 @@ func (suite *KeeperTestSuite) TestDeleteAccount() {
 			} else {
 				suite.Require().NoError(err)
 				balance := suite.app.EvmKeeper.GetBalance(suite.ctx, tc.addr)
-				suite.Require().Equal(new(big.Int), balance)
+				suite.Require().Equal(new(uint256.Int), balance)
 			}
 		})
 	}

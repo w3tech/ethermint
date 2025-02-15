@@ -183,7 +183,7 @@ func (suite *KeeperTestSuite) TestGetEthIntrinsicGas() {
 		expGas             uint64
 	}{
 		{
-			"no data, no accesslist, not contract creation, not homestead, not istanbul",
+			"no data, no accesslist, not contract creation, not homestead, not istanbul, not shanghai",
 			nil,
 			nil,
 			1,
@@ -192,7 +192,7 @@ func (suite *KeeperTestSuite) TestGetEthIntrinsicGas() {
 			params.TxGas,
 		},
 		{
-			"with one zero data, no accesslist, not contract creation, not homestead, not istanbul",
+			"with one zero data, no accesslist, not contract creation, not homestead, not istanbul, not shanghai",
 			[]byte{0},
 			nil,
 			1,
@@ -201,7 +201,7 @@ func (suite *KeeperTestSuite) TestGetEthIntrinsicGas() {
 			params.TxGas + params.TxDataZeroGas*1,
 		},
 		{
-			"with one non zero data, no accesslist, not contract creation, not homestead, not istanbul",
+			"with one non zero data, no accesslist, not contract creation, not homestead, not istanbul, not shanghai",
 			[]byte{1},
 			nil,
 			1,
@@ -210,7 +210,7 @@ func (suite *KeeperTestSuite) TestGetEthIntrinsicGas() {
 			params.TxGas + params.TxDataNonZeroGasFrontier*1,
 		},
 		{
-			"no data, one accesslist, not contract creation, not homestead, not istanbul",
+			"no data, one accesslist, not contract creation, not homestead, not istanbul, not shanghai",
 			nil,
 			[]ethtypes.AccessTuple{
 				{},
@@ -221,7 +221,7 @@ func (suite *KeeperTestSuite) TestGetEthIntrinsicGas() {
 			params.TxGas + params.TxAccessListAddressGas,
 		},
 		{
-			"no data, one accesslist with one storageKey, not contract creation, not homestead, not istanbul",
+			"no data, one accesslist with one storageKey, not contract creation, not homestead, not istanbul, not shanghai",
 			nil,
 			[]ethtypes.AccessTuple{
 				{StorageKeys: make([]common.Hash, 1)},
@@ -232,7 +232,7 @@ func (suite *KeeperTestSuite) TestGetEthIntrinsicGas() {
 			params.TxGas + params.TxAccessListAddressGas + params.TxAccessListStorageKeyGas*1,
 		},
 		{
-			"no data, no accesslist, is contract creation, is homestead, not istanbul",
+			"no data, no accesslist, is contract creation, is homestead, not istanbul, not shanghai",
 			nil,
 			nil,
 			2,
@@ -241,7 +241,7 @@ func (suite *KeeperTestSuite) TestGetEthIntrinsicGas() {
 			params.TxGasContractCreation,
 		},
 		{
-			"with one zero data, no accesslist, not contract creation, is homestead, is istanbul",
+			"with one zero data, no accesslist, not contract creation, is homestead, is istanbul, not shanghai",
 			[]byte{1},
 			nil,
 			3,
@@ -259,6 +259,8 @@ func (suite *KeeperTestSuite) TestGetEthIntrinsicGas() {
 			ethCfg := params.ChainConfig.EthereumConfig(suite.app.EvmKeeper.ChainID())
 			ethCfg.HomesteadBlock = big.NewInt(2)
 			ethCfg.IstanbulBlock = big.NewInt(3)
+			shanghaiTime := uint64(suite.ctx.BlockTime().Unix()) + 10000 // in the future, fork not enabled
+			ethCfg.ShanghaiTime = &shanghaiTime
 			signer := ethtypes.LatestSignerForChainID(suite.app.EvmKeeper.ChainID())
 
 			suite.ctx = suite.ctx.WithBlockHeight(tc.height)

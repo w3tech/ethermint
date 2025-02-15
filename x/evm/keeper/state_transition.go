@@ -334,8 +334,6 @@ func (k *Keeper) ApplyMessageWithConfig(ctx sdk.Context,
 
 	stateDB := statedb.New(ctx, k, txConfig)
 	evm := k.NewEVM(ctx, msg, cfg, tracer, stateDB)
-	rules := cfg.ChainConfig.Rules(big.NewInt(ctx.BlockHeight()), true, uint64(ctx.BlockTime().Unix()))
-	stateDB.Prepare(rules, msg.From, common.Address{}, msg.To, evm.ActivePrecompiles(rules), msg.AccessList)
 
 	leftoverGas := msg.GasLimit
 
@@ -367,9 +365,8 @@ func (k *Keeper) ApplyMessageWithConfig(ctx sdk.Context,
 
 	// access list preparation is moved from ante handler to here, because it's needed when `ApplyMessage` is called
 	// under contexts where ante handlers are not run, for example `eth_call` and `eth_estimateGas`.
-	if rules.IsBerlin {
-		stateDB.PrepareAccessList(msg.From, msg.To, evm.ActivePrecompiles(rules), msg.AccessList)
-	}
+	rules := cfg.ChainConfig.Rules(big.NewInt(ctx.BlockHeight()), true, uint64(ctx.BlockTime().Unix()))
+	stateDB.Prepare(rules, msg.From, common.Address{}, msg.To, evm.ActivePrecompiles(rules), msg.AccessList)
 
 	if contractCreation {
 		// take over the nonce management from evm:

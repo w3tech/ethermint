@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/evmos/ethermint/app"
+	"github.com/holiman/uint256"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/core"
 	ethcore "github.com/ethereum/go-ethereum/core"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
@@ -187,17 +189,17 @@ func accumulateRewards(
 	}
 
 	// accumulate the rewards for the miner and any included uncles
-	reward := new(big.Int).Set(blockReward)
+	reward := new(uint256.Int).Set(blockReward)
 	r := new(big.Int)
 
 	for _, uncle := range uncles {
 		r.Add(uncle.Number, rewardBig8)
 		r.Sub(r, header.Number)
-		r.Mul(r, blockReward)
+		r.Mul(r, blockReward.ToBig())
 		r.Div(r, rewardBig8)
-		vmdb.AddBalance(uncle.Coinbase, r)
-		r.Div(blockReward, rewardBig32)
-		reward.Add(reward, r)
+		vmdb.AddBalance(uncle.Coinbase, uint256.MustFromBig(r))
+		r.Div(blockReward.ToBig(), rewardBig32)
+		reward.Add(reward, uint256.MustFromBig(r))
 	}
 
 	vmdb.AddBalance(header.Coinbase, reward)
@@ -232,7 +234,7 @@ func applyTransaction(
 	gp *ethcore.GasPool, evmKeeper *evmkeeper.Keeper, vmdb *statedb.StateDB, header *ethtypes.Header,
 	tx *ethtypes.Transaction, usedGas *uint64, cfg ethvm.Config,
 ) (*ethtypes.Receipt, uint64, error) {
-	msg, err := tx.AsMessage(ethtypes.MakeSigner(config, header.Number, header.Time), sdkmath.ZeroInt().BigInt())
+	msg, err := core.TransactionToMessage(tx, ethtypes.MakeSigner(config, header.Number, header.Time), sdkmath.ZeroInt().BigInt())
 	if err != nil {
 		return nil, 0, err
 	}
@@ -262,7 +264,7 @@ func applyTransaction(
 	receipt.GasUsed = execResult.UsedGas
 
 	// if the transaction created a contract, store the creation address in the receipt.
-	if msg.To() == nil {
+	if msg.To == nil {
 		receipt.ContractAddress = crypto.CreateAddress(vmenv.TxContext.Origin, tx.Nonce())
 	}
 

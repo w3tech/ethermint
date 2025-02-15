@@ -23,7 +23,6 @@ import (
 	"math/big"
 	"time"
 
-	evmcore "github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/eth/tracers/logger"
 
@@ -343,7 +342,7 @@ func (k Keeper) EstimateGas(c context.Context, req *types.EthCallRequest) (*type
 	// Create a helper to check if a gas allowance results in an executable transaction
 	executable := func(gas uint64) (vmError bool, rsp *types.MsgEthereumTxResponse, err error) {
 		// update the message with the new gas value
-		msg = evmcore.Message{
+		msg = core.Message{
 			From:              msg.From,
 			To:                msg.To,
 			Nonce:             msg.Nonce,
@@ -433,7 +432,7 @@ func (k Keeper) TraceTx(c context.Context, req *types.QueryTraceTxRequest) (*typ
 	txConfig := statedb.NewEmptyTxConfig(common.BytesToHash(ctx.HeaderHash()))
 	for i, tx := range req.Predecessors {
 		ethTx := tx.AsTransaction()
-		msg, err := evmcore.TransactionToMessage(ethTx, signer, cfg.BaseFee)
+		msg, err := core.TransactionToMessage(ethTx, signer, cfg.BaseFee)
 		if err != nil || msg == nil {
 			continue
 		}
@@ -554,7 +553,7 @@ func (k *Keeper) traceTx(
 		err       error
 		timeout   = defaultTraceTimeout
 	)
-	msg, err := evmcore.TransactionToMessage(tx, signer, cfg.BaseFee)
+	msg, err := core.TransactionToMessage(tx, signer, cfg.BaseFee)
 	if err != nil {
 		return nil, 0, status.Error(codes.Internal, err.Error())
 	}

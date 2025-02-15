@@ -780,7 +780,7 @@ func NewEthermintApp(
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetPreBlocker(app.PreBlocker)
 	app.SetEndBlocker(app.EndBlocker)
-	app.setAnteHandler(txConfig, cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted)), cast.ToBool(appOpts.Get(srvflags.EVMEnablePreimageRecording)))
+	app.setAnteHandler(txConfig, cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted)))
 
 	// In v0.46, the SDK introduces _postHandlers_. PostHandlers are like
 	// antehandlers, but are run _after_ the `runMsgs` execution. They are also
@@ -823,21 +823,20 @@ func NewEthermintApp(
 }
 
 // use Ethermint's custom AnteHandler
-func (app *EthermintApp) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, enablePreimageRecording bool) {
+func (app *EthermintApp) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
 	anteHandler, err := ante.NewAnteHandler(
 		ante.HandlerOptions{
-			AccountKeeper:           app.AccountKeeper,
-			BankKeeper:              app.BankKeeper,
-			SignModeHandler:         txConfig.SignModeHandler(),
-			FeegrantKeeper:          app.FeeGrantKeeper,
-			SigGasConsumer:          ante.DefaultSigVerificationGasConsumer,
-			IBCKeeper:               app.IBCKeeper,
-			EvmKeeper:               app.EvmKeeper,
-			FeeMarketKeeper:         app.FeeMarketKeeper,
-			MaxTxGasWanted:          maxGasWanted,
-			EnablePreimageRecording: enablePreimageRecording,
-			ExtensionOptionChecker:  ethermint.HasDynamicFeeExtensionOption,
-			TxFeeChecker:            ante.NewDynamicFeeChecker(app.EvmKeeper),
+			AccountKeeper:          app.AccountKeeper,
+			BankKeeper:             app.BankKeeper,
+			SignModeHandler:        txConfig.SignModeHandler(),
+			FeegrantKeeper:         app.FeeGrantKeeper,
+			SigGasConsumer:         ante.DefaultSigVerificationGasConsumer,
+			IBCKeeper:              app.IBCKeeper,
+			EvmKeeper:              app.EvmKeeper,
+			FeeMarketKeeper:        app.FeeMarketKeeper,
+			MaxTxGasWanted:         maxGasWanted,
+			ExtensionOptionChecker: ethermint.HasDynamicFeeExtensionOption,
+			TxFeeChecker:           ante.NewDynamicFeeChecker(app.EvmKeeper),
 			DisabledAuthzMsgs: []string{
 				sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}),
 				sdk.MsgTypeURL(&vestingtypes.MsgCreateVestingAccount{}),
