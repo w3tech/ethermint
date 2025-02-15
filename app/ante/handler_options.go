@@ -35,18 +35,19 @@ import (
 // HandlerOptions extend the SDK's AnteHandler options by requiring the IBC
 // channel keeper, EVM Keeper and Fee Market Keeper.
 type HandlerOptions struct {
-	AccountKeeper          evmtypes.AccountKeeper
-	BankKeeper             evmtypes.BankKeeper
-	IBCKeeper              *ibckeeper.Keeper
-	FeeMarketKeeper        FeeMarketKeeper
-	EvmKeeper              EVMKeeper
-	FeegrantKeeper         ante.FeegrantKeeper
-	SignModeHandler        *txsigning.HandlerMap
-	SigGasConsumer         func(meter storetypes.GasMeter, sig signing.SignatureV2, params authtypes.Params) error
-	MaxTxGasWanted         uint64
-	ExtensionOptionChecker ante.ExtensionOptionChecker
-	TxFeeChecker           ante.TxFeeChecker
-	DisabledAuthzMsgs      []string
+	AccountKeeper           evmtypes.AccountKeeper
+	BankKeeper              evmtypes.BankKeeper
+	IBCKeeper               *ibckeeper.Keeper
+	FeeMarketKeeper         FeeMarketKeeper
+	EvmKeeper               EVMKeeper
+	FeegrantKeeper          ante.FeegrantKeeper
+	SignModeHandler         *txsigning.HandlerMap
+	SigGasConsumer          func(meter storetypes.GasMeter, sig signing.SignatureV2, params authtypes.Params) error
+	MaxTxGasWanted          uint64
+	EnablePreimageRecording bool
+	ExtensionOptionChecker  ante.ExtensionOptionChecker
+	TxFeeChecker            ante.TxFeeChecker
+	DisabledAuthzMsgs       []string
 }
 
 func (options HandlerOptions) validate() error {

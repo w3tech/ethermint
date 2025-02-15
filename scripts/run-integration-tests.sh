@@ -13,7 +13,7 @@ cd ..
 
 TESTS_TO_RUN="${TESTS_TO_RUN:-all}"
 
-if [[ "$TESTS_TO_RUN" == "all" ]]; then
+if [ "$TESTS_TO_RUN" = "all" ]; then
   echo "run all tests"
   pytest -vv -s
 else

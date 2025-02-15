@@ -32,6 +32,7 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/holiman/uint256"
 
 	ethermint "github.com/evmos/ethermint/types"
 	"github.com/evmos/ethermint/x/evm/statedb"
@@ -272,7 +273,7 @@ func (k *Keeper) PostTxProcessing(ctx sdk.Context, msg core.Message, receipt *et
 
 // Tracer return a default vm.Tracer based on current keeper state
 func (k Keeper) Tracer(ctx sdk.Context, msg core.Message, ethCfg *params.ChainConfig) vm.EVMLogger {
-	return types.NewTracer(k.tracer, msg, ethCfg, ctx.BlockHeight())
+	return types.NewTracer(k.tracer, msg, ethCfg, ctx.BlockHeight(), uint64(ctx.BlockTime().Unix()))
 }
 
 // GetAccountWithoutBalance load nonce and codehash without balance,
@@ -305,7 +306,7 @@ func (k *Keeper) GetAccountOrEmpty(ctx sdk.Context, addr common.Address) statedb
 
 	// empty account
 	return statedb.Account{
-		Balance:  new(big.Int),
+		Balance:  new(uint256.Int),
 		CodeHash: types.EmptyCodeHash,
 	}
 }
@@ -322,16 +323,16 @@ func (k *Keeper) GetNonce(ctx sdk.Context, addr common.Address) uint64 {
 }
 
 // GetBalance load account's balance of gas token
-func (k *Keeper) GetBalance(ctx sdk.Context, addr common.Address) *big.Int {
+func (k *Keeper) GetBalance(ctx sdk.Context, addr common.Address) *uint256.Int {
 	cosmosAddr := sdk.AccAddress(addr.Bytes())
 	evmParams := k.GetParams(ctx)
 	evmDenom := evmParams.GetEvmDenom()
 	// if node is pruned, params is empty. Return invalid value
 	if evmDenom == "" {
-		return big.NewInt(-1)
+		return nil
 	}
 	coin := k.bankKeeper.GetBalance(ctx, cosmosAddr, evmDenom)
-	return coin.Amount.BigInt()
+	return uint256.MustFromBig(coin.Amount.BigInt())
 }
 
 // GetBaseFee returns current base fee, return values:

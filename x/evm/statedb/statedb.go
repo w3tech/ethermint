@@ -17,15 +17,17 @@ package statedb
 
 import (
 	"fmt"
-	"math/big"
 	"sort"
 
-	errorsmod "cosmossdk.io/errors"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	ethparams "github.com/ethereum/go-ethereum/params"
+	"github.com/holiman/uint256"
+
+	errorsmod "cosmossdk.io/errors"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // revision is the identifier of a version of state.
@@ -53,7 +55,8 @@ type StateDB struct {
 	validRevisions []revision
 	nextRevisionID int
 
-	stateObjects map[common.Address]*stateObject
+	stateObjects     map[common.Address]*stateObject
+	transientStorage transientStorage
 
 	txConfig TxConfig
 
@@ -70,11 +73,12 @@ type StateDB struct {
 // New creates a new state from a given trie.
 func New(ctx sdk.Context, keeper Keeper, txConfig TxConfig) *StateDB {
 	return &StateDB{
-		keeper:       keeper,
-		ctx:          ctx,
-		stateObjects: make(map[common.Address]*stateObject),
-		journal:      newJournal(),
-		accessList:   newAccessList(),
+		keeper:           keeper,
+		ctx:              ctx,
+		stateObjects:     make(map[common.Address]*stateObject),
+		journal:          newJournal(),
+		accessList:       newAccessList(),
+		transientStorage: newTransientStorage(),
 
 		txConfig: txConfig,
 	}
@@ -131,12 +135,12 @@ func (s *StateDB) Empty(addr common.Address) bool {
 }
 
 // GetBalance retrieves the balance from the given address or 0 if object not found
-func (s *StateDB) GetBalance(addr common.Address) *big.Int {
+func (s *StateDB) GetBalance(addr common.Address) *uint256.Int {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.Balance()
 	}
-	return common.Big0
+	return common.U2560
 }
 
 // GetNonce returns the nonce of account, 0 if not exists.
@@ -303,7 +307,7 @@ func (s *StateDB) setStateObject(object *stateObject) {
  */
 
 // AddBalance adds amount to the account associated with addr.
-func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
+func (s *StateDB) AddBalance(addr common.Address, amount *uint256.Int) {
 	stateObject := s.getOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.AddBalance(amount)
@@ -311,7 +315,7 @@ func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 }
 
 // SubBalance subtracts amount from the account associated with addr.
-func (s *StateDB) SubBalance(addr common.Address, amount *big.Int) {
+func (s *StateDB) SubBalance(addr common.Address, amount *uint256.Int) {
 	stateObject := s.getOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SubBalance(amount)
@@ -342,25 +346,66 @@ func (s *StateDB) SetState(addr common.Address, key, value common.Hash) {
 	}
 }
 
-// Suicide marks the given account as suicided.
+// SelfDestruct marks the given account as suicided.
 // This clears the account balance.
 //
 // The account's state object is still available until the state is committed,
 // getStateObject will return a non-nil account after Suicide.
-func (s *StateDB) Suicide(addr common.Address) bool {
+func (s *StateDB) SelfDestruct(addr common.Address) {
 	stateObject := s.getStateObject(addr)
 	if stateObject == nil {
-		return false
+		return
 	}
 	s.journal.append(suicideChange{
 		account:     &addr,
 		prev:        stateObject.suicided,
-		prevbalance: new(big.Int).Set(stateObject.Balance()),
+		prevbalance: new(uint256.Int).Set(stateObject.Balance()),
 	})
 	stateObject.markSuicided()
-	stateObject.account.Balance = new(big.Int)
+	stateObject.account.Balance = new(uint256.Int)
+}
 
-	return true
+func (s *StateDB) Selfdestruct6780(addr common.Address) {
+	stateObject := s.getStateObject(addr)
+	if stateObject == nil {
+		return
+	}
+	s.SelfDestruct(addr)
+}
+
+func (s *StateDB) HasSelfDestructed(addr common.Address) bool {
+	stateObject := s.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.suicided
+	}
+	return false
+}
+
+// SetTransientState sets transient storage for a given account. It
+// adds the change to the journal so that it can be rolled back
+// to its previous value if there is a revert.
+func (s *StateDB) SetTransientState(addr common.Address, key, value common.Hash) {
+	prev := s.GetTransientState(addr, key)
+	if prev == value {
+		return
+	}
+	s.journal.append(transientStorageChange{
+		account:  &addr,
+		key:      key,
+		prevalue: prev,
+	})
+	s.setTransientState(addr, key, value)
+}
+
+// setTransientState is a lower level setter for transient storage. It
+// is called during a revert to prevent modifications to the journal.
+func (s *StateDB) setTransientState(addr common.Address, key, value common.Hash) {
+	s.transientStorage.Set(addr, key, value)
+}
+
+// GetTransientState gets transient storage for a given account.
+func (s *StateDB) GetTransientState(addr common.Address, key common.Hash) common.Hash {
+	return s.transientStorage.Get(addr, key)
 }
 
 // PrepareAccessList handles the preparatory steps for executing a state transition with
@@ -475,4 +520,45 @@ func (s *StateDB) Commit() error {
 		}
 	}
 	return nil
+}
+
+// Prepare handles the preparatory steps for executing a state transition with.
+// This method must be invoked before state transition.
+//
+// Berlin fork:
+// - Add sender to access list (2929)
+// - Add destination to access list (2929)
+// - Add precompiles to access list (2929)
+// - Add the contents of the optional tx access list (2930)
+//
+// Potential EIPs:
+// - Reset access list (Berlin)
+// - Add coinbase to access list (EIP-3651)
+// - Reset transient storage (EIP-1153)
+func (s *StateDB) Prepare(rules ethparams.Rules, sender, coinbase common.Address, dst *common.Address, precompiles []common.Address, list ethtypes.AccessList) {
+	if rules.IsBerlin {
+		// Clear out any leftover from previous executions
+		al := newAccessList()
+		s.accessList = al
+
+		al.AddAddress(sender)
+		if dst != nil {
+			al.AddAddress(*dst)
+			// If it's a create-tx, the destination will be added inside evm.create
+		}
+		for _, addr := range precompiles {
+			al.AddAddress(addr)
+		}
+		for _, el := range list {
+			al.AddAddress(el.Address)
+			for _, key := range el.StorageKeys {
+				al.AddSlot(el.Address, key)
+			}
+		}
+		if rules.IsShanghai { // EIP-3651: warm coinbase
+			al.AddAddress(coinbase)
+		}
+	}
+	// Reset transient storage at the beginning of transaction execution
+	s.transientStorage = newTransientStorage()
 }

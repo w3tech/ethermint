@@ -46,6 +46,9 @@ const (
 	// DefaultEVMTracer is the default vm.Tracer type
 	DefaultEVMTracer = ""
 
+	// DefaultEnablePreimageRecording is the default value for EnablePreimageRecording
+	DefaultEnablePreimageRecording = false
+
 	// DefaultFixRevertGasRefundHeight is the default height at which to overwrite gas refund
 	DefaultFixRevertGasRefundHeight = 0
 
@@ -96,6 +99,8 @@ type EVMConfig struct {
 	Tracer string `mapstructure:"tracer"`
 	// MaxTxGasWanted defines the gas wanted for each eth tx returned in ante handler in check tx mode.
 	MaxTxGasWanted uint64 `mapstructure:"max-tx-gas-wanted"`
+	// Enables tracking of SHA3 preimages in the VM
+	EnablePreimageRecording bool `mapstructure:"cache-preimage"`
 }
 
 // JSONRPCConfig defines configuration for the EVM RPC server.
@@ -330,8 +335,9 @@ func GetConfig(v *viper.Viper) (Config, error) {
 	return Config{
 		Config: cfg,
 		EVM: EVMConfig{
-			Tracer:         v.GetString("evm.tracer"),
-			MaxTxGasWanted: v.GetUint64("evm.max-tx-gas-wanted"),
+			Tracer:                  v.GetString("evm.tracer"),
+			MaxTxGasWanted:          v.GetUint64("evm.max-tx-gas-wanted"),
+			EnablePreimageRecording: v.GetBool("evm.cache-preimage"),
 		},
 		JSONRPC: JSONRPCConfig{
 			Enable:                   v.GetBool("json-rpc.enable"),

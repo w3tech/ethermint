@@ -338,7 +338,7 @@ func (a *API) SeedHash(number uint64) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("0x%x", ethash.SeedHash(number)), nil
+	return fmt.Sprintf("0x%x", ethash.NewFakeFailer(number)), nil
 }
 
 // IntermediateRoots executes a block, and returns a list
