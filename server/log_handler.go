@@ -38,16 +38,16 @@ func (h *CustomSlogHandler) Handle(_ context.Context, r slog.Record) error {
 }
 
 // Enabled determines if the handler should log a given level.
-func (h *CustomSlogHandler) Enabled(_ context.Context, level slog.Level) bool {
+func (h *CustomSlogHandler) Enabled(_ context.Context, _ slog.Level) bool {
 	return true
 }
 
 // WithAttrs allows adding additional attributes.
-func (h *CustomSlogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+func (h *CustomSlogHandler) WithAttrs(_ []slog.Attr) slog.Handler {
 	return h
 }
 
 // WithGroup is required to implement slog.Handler (not used).
-func (h *CustomSlogHandler) WithGroup(name string) slog.Handler {
+func (h *CustomSlogHandler) WithGroup(_ string) slog.Handler {
 	return h
 }
