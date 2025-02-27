@@ -64,7 +64,7 @@ func (b *Backend) SendTransaction(args evmtypes.TransactionArgs) (common.Hash, e
 		return common.Hash{}, err
 	}
 
-	signer := ethtypes.MakeSigner(b.ChainConfig(), new(big.Int).SetUint64(uint64(bn)))
+	signer := ethtypes.MakeSigner(b.ChainConfig(), new(big.Int).SetUint64(uint64(bn)), b.CurrentHeader().Time)
 
 	// Sign transaction
 	if err := msg.Sign(signer, b.clientCtx.Keyring); err != nil {

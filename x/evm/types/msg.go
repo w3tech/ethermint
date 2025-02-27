@@ -337,7 +337,7 @@ func (msg MsgEthereumTx) AsTransaction() *ethtypes.Transaction {
 func (msg MsgEthereumTx) AsMessage(signer ethtypes.Signer, baseFee *big.Int) (core.Message, error) {
 	txData, err := UnpackTxData(msg.Data)
 	if err != nil {
-		return nil, err
+		return core.Message{}, err
 	}
 
 	gasPrice, gasFeeCap, gasTipCap := txData.GetGasPrice(), txData.GetGasFeeCap(), txData.GetGasTipCap()
@@ -355,20 +355,21 @@ func (msg MsgEthereumTx) AsMessage(signer ethtypes.Signer, baseFee *big.Int) (co
 		// heavy path
 		from, err = signer.Sender(msg.AsTransaction())
 		if err != nil {
-			return nil, err
+			return core.Message{}, err
 		}
 	}
-	ethMsg := ethtypes.NewMessage(
-		from,
-		txData.GetTo(),
-		txData.GetNonce(),
-		txData.GetValue(),
-		txData.GetGas(),
-		gasPrice, gasFeeCap, gasTipCap,
-		txData.GetData(),
-		txData.GetAccessList(),
-		false,
-	)
+	ethMsg := core.Message{
+		From:       from,
+		To:         txData.GetTo(),
+		Nonce:      txData.GetNonce(),
+		Value:      txData.GetValue(),
+		GasLimit:   txData.GetGas(),
+		GasPrice:   gasPrice,
+		GasFeeCap:  gasFeeCap,
+		GasTipCap:  gasTipCap,
+		Data:       txData.GetData(),
+		AccessList: txData.GetAccessList(),
+	}
 
 	return ethMsg, nil
 }
