@@ -239,6 +239,9 @@ func (b *Backend) GetTransactionReceipt(hash common.Hash) (map[string]interface{
 		"blockNumber":      hexutil.Uint64(res.Height),
 		"transactionIndex": hexutil.Uint64(res.EthTxIndex),
 
+		// https://github.com/foundry-rs/foundry/issues/7640
+		"effectiveGasPrice": (*hexutil.Big)(txData.GetGasPrice()),
+
 		// sender and receiver (contract or EOA) addreses
 		"from": from,
 		"to":   txData.GetTo(),
